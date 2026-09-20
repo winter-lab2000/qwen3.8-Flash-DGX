@@ -20,6 +20,13 @@
 #     spark-1 同样封顶在 3.1-3.4 MB/s。**换源不会更快，别折腾镜像站。**
 #   - 可断点续跑：中断后重跑同一命令即可，部分下载保留为 *.incomplete
 #
+# 暂停 / 停止 —— 重要：
+#   `timeout`、Ctrl-C、关掉 ssh 都**不会**停掉下载容器。docker 客户端被杀了，容器还在跑
+#   （实测：timeout 90 之后容器仍 Up，多下了几分钟）。要真的停下来，必须显式停容器：
+#       sudo docker stop qwen38-dl
+#   已经下到的字节保留为 *.incomplete，重跑本脚本即从断点续传，不浪费。
+#   查是否还在跑：  sudo docker ps --filter name=qwen38-dl
+#
 # 用法：
 #   ./download-weights-cn.sh
 #   MAX_WORKERS=16 ./download-weights-cn.sh
