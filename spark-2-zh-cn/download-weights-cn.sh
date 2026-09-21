@@ -9,9 +9,18 @@
 #   2. 它默认 XET=1 并**显式传** -e HF_HUB_DISABLE_XET=0，会在容器里覆盖你在宿主机
 #      export 的同名变量。所以"在宿主机 export HF_HUB_DISABLE_XET=1"对它是无效的。
 #
-# 本脚本的做法：HF_ENDPOINT=https://hf-mirror.com + 关掉 Xet。
-#   hf-mirror 不代理 Xet CAS，对大文件它 302 到 cas-bridge.xethub.hf.co；
-#   实测该 302 转发能稳定跑满本条线路的全部带宽，所以关 Xet 没有代价。
+# 本脚本的做法：HF_ENDPOINT=https://hf-mirror.com + 关掉 Xet（纯 HTTPS；hf-mirror 会把大文件
+# 302 到 cas-bridge.xethub.hf.co，该链路实测能跑满本条线路的全部带宽）。
+#
+# ⚠️ 但关掉 Xet **不足以**下载超大分片。2026-09-21 实测的完整结论：
+#   - hf-mirror 给的签名 URL 有效期只有 3600 秒。本线路约 3-4 MB/s，
+#     所以 **>12 GiB 的文件单次下载必然超过有效期而中断**。
+#     ≤9.32 GiB 的分片约 40 分钟 → 全部成功（25 个文件里的 24 个就是这么下来的）。
+#   - 那个 50.03 GiB 的 PLE 分片在纯 HTTPS 下被直接拒绝：
+#       "The file is too large to be downloaded using the regular download method."
+#   - 打开 Xet 也不行：客户端会去连真·CAS 服务 cas-server.xethub.hf.co，
+#     匿名请求返回 **401 Unauthorized**（本 LAN 也无法用 Xet）。
+#   => 该分片必须用 spark-2-zh-cn/fetch-big-shard.sh（分段 + 每段重新取签名）单独下载。
 #
 # 实测（2026-09-20, spark-2）：
 #   - 稳定 ~3.3 MB/s，123.62 GiB 约 11 小时
