@@ -100,6 +100,12 @@ fi
 log "sha256 正确 ✓"
 
 log "装入 HF 缓存（blob 名 = LFS sha256）..."
+# 下载通常是由 root 容器发起的，缓存目录可能归 root:root，于是 mv/ln 报"权限不够"。
+# 这里先确保可写，避免 hash 都校验过了却在最后一步白费（已经吃过一次这个亏）。
+if [ ! -w "$BLOBS" ]; then
+  log "  $BLOBS 不可写（容器以 root 创建过），用 sudo 把所有权交回 $(id -un) ..."
+  sudo chown -R "$(id -u):$(id -g)" "$HF_CACHE" || log "  !! chown 失败，请手工执行 sudo chown -R $(id -u):$(id -g) $HF_CACHE"
+fi
 mv -f "$OUT" "$BLOBS/$EXPECT_SHA"
 n=0
 for d in "$SNAPS"/*/; do
